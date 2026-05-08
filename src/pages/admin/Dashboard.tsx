@@ -10,16 +10,6 @@ import { format, subDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface EntryDetail {
   id: string;
@@ -34,6 +24,13 @@ interface EntryDetail {
 
 type ModalType = "today" | "week" | null;
 
+interface CategorySummary {
+  id: string;
+  name: string;
+  status: string;
+  codes: number;
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0 });
   const [chartData, setChartData] = useState<{ date: string; entries: number }[]>([]);
@@ -42,51 +39,23 @@ export default function Dashboard() {
   const [todayEntries, setTodayEntries] = useState<EntryDetail[]>([]);
   const [weekEntries, setWeekEntries] = useState<EntryDetail[]>([]);
   const [backingUp, setBackingUp] = useState(false);
-  const [materials, setMaterials] = useState<{ id: string; name: string; unit: string; current_stock: number }[]>([]);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [categories, setCategories] = useState<CategorySummary[]>([]);
 
-  const fetchMaterials = async () => {
-    const { data } = await supabase
-      .from("raw_materials")
-      .select("id, name, unit, current_stock")
-      .eq("status", "active");
-    const shuffled = [...(data ?? [])].sort(() => Math.random() - 0.5);
-    setMaterials(shuffled);
+  const fetchCategories = async () => {
+    const [catRes, codeRes] = await Promise.all([
+      supabase.from("product_categories").select("id, name, status").eq("status", "active").order("name"),
+      supabase.from("product_codes").select("category_id").eq("status", "active").limit(5000),
+    ]);
+    const counts: Record<string, number> = {};
+    for (const c of (codeRes.data ?? []) as any[]) {
+      counts[c.category_id] = (counts[c.category_id] ?? 0) + 1;
+    }
+    setCategories((catRes.data ?? []).map((c: any) => ({ ...c, codes: counts[c.id] ?? 0 })));
   };
 
   useEffect(() => {
-    fetchMaterials();
+    fetchCategories();
   }, []);
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const { data: recipes } = await supabase
-      .from("product_recipes")
-      .select("id")
-      .eq("raw_material_id", deleteTarget.id)
-      .limit(1);
-    if (recipes && recipes.length > 0) {
-      toast({
-        title: "Cannot delete",
-        description: "This material is used in product recipes. Remove it from recipes first.",
-        variant: "destructive",
-      });
-      setDeleting(false);
-      setDeleteTarget(null);
-      return;
-    }
-    const { error } = await supabase.from("raw_materials").delete().eq("id", deleteTarget.id);
-    setDeleting(false);
-    setDeleteTarget(null);
-    if (error) {
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Material deleted" });
-    await fetchMaterials();
-  };
 
   useEffect(() => {
     const fetchStats = async () => {
