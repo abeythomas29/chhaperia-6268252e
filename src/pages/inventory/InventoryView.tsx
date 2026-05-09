@@ -307,15 +307,34 @@ export default function InventoryView() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Raw Materials ({filtered.length})
-          </CardTitle>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Raw Materials ({filtered.length})
+            </CardTitle>
+            {selectedIds.size > 0 && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete Selected ({selectedIds.size})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allFilteredSelected ? true : (someFilteredSelected ? "indeterminate" : false)}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead className="text-right">Current Stock</TableHead>
@@ -325,9 +344,16 @@ export default function InventoryView() {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No materials found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No materials found</TableCell></TableRow>
               ) : filtered.map((m) => (
-                <TableRow key={m.id}>
+                <TableRow key={m.id} data-state={selectedIds.has(m.id) ? "selected" : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(m.id)}
+                      onCheckedChange={() => toggleSelect(m.id)}
+                      aria-label={`Select ${m.name}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{m.name}</TableCell>
                   <TableCell>{m.unit}</TableCell>
                   <TableCell className="text-right font-mono">{m.current_stock.toLocaleString()}</TableCell>
