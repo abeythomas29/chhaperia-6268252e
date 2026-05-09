@@ -48,6 +48,7 @@ export default function InventoryView() {
   const [editTarget, setEditTarget] = useState<RawMaterial | null>(null);
   const [editName, setEditName] = useState("");
   const [editUnit, setEditUnit] = useState("kg");
+  const [editStock, setEditStock] = useState("0");
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RawMaterial | null>(null);
   const [deleting, setDeleting] = useState(false);
