@@ -124,37 +124,63 @@ export default function ProductionEntry() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !form.product_code_id || !form.rolls_count || !form.quantity_per_roll) return;
+    if (!user || !form.product_code_id) return;
+
+    const categoryName = categories.find((c) => c.id === selectedCategory)?.name?.toLowerCase() ?? "";
+    const isRope = categoryName.includes("rope");
+    const validRopeRows = thicknessRows.filter((r) => r.thickness_mm && r.rolls_count && r.quantity_per_roll);
+    const useMultiThickness = isRope && validRopeRows.length > 0;
+
+    if (!useMultiThickness && (!form.rolls_count || !form.quantity_per_roll)) return;
+
     setSubmitting(true);
 
-    const insertPayload: Record<string, unknown> = {
-      product_code_id: form.product_code_id,
-      date: form.date,
-      worker_id: user.id,
-      rolls_count: Number(form.rolls_count),
-      quantity_per_roll: Number(form.quantity_per_roll),
-      unit: form.unit,
-    };
-    if (form.thickness_mm) {
-      insertPayload.thickness_mm = Number(form.thickness_mm);
-    }
-    if (form.notes.trim()) {
-      insertPayload.notes = form.notes.trim();
-    }
-    if (form.swelling_speed) insertPayload.swelling_speed = Number(form.swelling_speed);
-    if (form.swelling_height) insertPayload.swelling_height = Number(form.swelling_height);
-    if (form.tensile_strength) insertPayload.tensile_strength = Number(form.tensile_strength);
-    if (form.elongation) insertPayload.elongation = Number(form.elongation);
-    if (form.surface_resistance) insertPayload.surface_resistance = Number(form.surface_resistance);
+    const baseExtras: Record<string, unknown> = { client_id: form.client_id || null };
+    if (form.gsm) baseExtras.gsm = Number(form.gsm);
+    if (form.notes.trim()) baseExtras.notes = form.notes.trim();
+    if (form.swelling_speed) baseExtras.swelling_speed = Number(form.swelling_speed);
+    if (form.swelling_height) baseExtras.swelling_height = Number(form.swelling_height);
+    if (form.tensile_strength) baseExtras.tensile_strength = Number(form.tensile_strength);
+    if (form.elongation) baseExtras.elongation = Number(form.elongation);
+    if (form.surface_resistance) baseExtras.surface_resistance = Number(form.surface_resistance);
+    baseExtras.lab_report_included = form.lab_report_included;
+    baseExtras.raw_material_included = form.raw_material_included;
 
-    const { data: entry, error } = await supabase
+    const rowsToInsert = useMultiThickness
+      ? validRopeRows.map((r) => ({
+          product_code_id: form.product_code_id,
+          date: form.date,
+          worker_id: user.id,
+          rolls_count: Number(r.rolls_count),
+          quantity_per_roll: Number(r.quantity_per_roll),
+          unit: form.unit,
+          thickness_mm: Number(r.thickness_mm),
+          ...baseExtras,
+        }))
+      : [{
+          product_code_id: form.product_code_id,
+          date: form.date,
+          worker_id: user.id,
+          rolls_count: Number(form.rolls_count),
+          quantity_per_roll: Number(form.quantity_per_roll),
+          unit: form.unit,
+          ...(form.thickness_mm ? { thickness_mm: Number(form.thickness_mm) } : {}),
+          ...baseExtras,
+        }];
+
+    const { data: entries, error } = await supabase
       .from("production_entries")
-      .insert(insertPayload as any)
-      .select("id")
-      .single();
+      .insert(rowsToInsert as any)
+      .select("id");
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+    const entry = entries?.[0];
+    if (!entry) {
+      toast({ title: "Error", description: "Insert returned no rows", variant: "destructive" });
       setSubmitting(false);
       return;
     }
