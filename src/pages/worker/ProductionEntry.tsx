@@ -8,9 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, CheckCircle, Loader2, Trash2, ChevronDown, Package } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, CheckCircle, Loader2, Trash2, ChevronDown, Package, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { UNIT_OPTIONS } from "@/lib/units";
+
+interface ThicknessRow { thickness_mm: string; rolls_count: string; quantity_per_roll: string; }
 
 interface MaterialUsageRow {
   raw_material_id: string;
@@ -42,13 +46,19 @@ export default function ProductionEntry() {
     quantity_per_roll: "",
     unit: "meters",
     thickness_mm: "",
+    gsm: "",
     notes: "",
     swelling_speed: "",
     swelling_height: "",
     tensile_strength: "",
     elongation: "",
     surface_resistance: "",
+    lab_report_included: false,
+    raw_material_included: false,
   });
+
+  // Rope multi-thickness rows (only used when category is Rope)
+  const [thicknessRows, setThicknessRows] = useState<ThicknessRow[]>([]);
 
   const [newProductCode, setNewProductCode] = useState("");
   const [newProductCat, setNewProductCat] = useState("");
@@ -114,37 +124,63 @@ export default function ProductionEntry() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !form.product_code_id || !form.rolls_count || !form.quantity_per_roll) return;
+    if (!user || !form.product_code_id) return;
+
+    const categoryName = categories.find((c) => c.id === selectedCategory)?.name?.toLowerCase() ?? "";
+    const isRope = categoryName.includes("rope");
+    const validRopeRows = thicknessRows.filter((r) => r.thickness_mm && r.rolls_count && r.quantity_per_roll);
+    const useMultiThickness = isRope && validRopeRows.length > 0;
+
+    if (!useMultiThickness && (!form.rolls_count || !form.quantity_per_roll)) return;
+
     setSubmitting(true);
 
-    const insertPayload: Record<string, unknown> = {
-      product_code_id: form.product_code_id,
-      date: form.date,
-      worker_id: user.id,
-      rolls_count: Number(form.rolls_count),
-      quantity_per_roll: Number(form.quantity_per_roll),
-      unit: form.unit,
-    };
-    if (form.thickness_mm) {
-      insertPayload.thickness_mm = Number(form.thickness_mm);
-    }
-    if (form.notes.trim()) {
-      insertPayload.notes = form.notes.trim();
-    }
-    if (form.swelling_speed) insertPayload.swelling_speed = Number(form.swelling_speed);
-    if (form.swelling_height) insertPayload.swelling_height = Number(form.swelling_height);
-    if (form.tensile_strength) insertPayload.tensile_strength = Number(form.tensile_strength);
-    if (form.elongation) insertPayload.elongation = Number(form.elongation);
-    if (form.surface_resistance) insertPayload.surface_resistance = Number(form.surface_resistance);
+    const baseExtras: Record<string, unknown> = { client_id: form.client_id || null };
+    if (form.gsm) baseExtras.gsm = Number(form.gsm);
+    if (form.notes.trim()) baseExtras.notes = form.notes.trim();
+    if (form.swelling_speed) baseExtras.swelling_speed = Number(form.swelling_speed);
+    if (form.swelling_height) baseExtras.swelling_height = Number(form.swelling_height);
+    if (form.tensile_strength) baseExtras.tensile_strength = Number(form.tensile_strength);
+    if (form.elongation) baseExtras.elongation = Number(form.elongation);
+    if (form.surface_resistance) baseExtras.surface_resistance = Number(form.surface_resistance);
+    baseExtras.lab_report_included = form.lab_report_included;
+    baseExtras.raw_material_included = form.raw_material_included;
 
-    const { data: entry, error } = await supabase
+    const rowsToInsert = useMultiThickness
+      ? validRopeRows.map((r) => ({
+          product_code_id: form.product_code_id,
+          date: form.date,
+          worker_id: user.id,
+          rolls_count: Number(r.rolls_count),
+          quantity_per_roll: Number(r.quantity_per_roll),
+          unit: form.unit,
+          thickness_mm: Number(r.thickness_mm),
+          ...baseExtras,
+        }))
+      : [{
+          product_code_id: form.product_code_id,
+          date: form.date,
+          worker_id: user.id,
+          rolls_count: Number(form.rolls_count),
+          quantity_per_roll: Number(form.quantity_per_roll),
+          unit: form.unit,
+          ...(form.thickness_mm ? { thickness_mm: Number(form.thickness_mm) } : {}),
+          ...baseExtras,
+        }];
+
+    const { data: entries, error } = await supabase
       .from("production_entries")
-      .insert(insertPayload as any)
-      .select("id")
-      .single();
+      .insert(rowsToInsert as any)
+      .select("id");
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+    const entry = entries?.[0];
+    if (!entry) {
+      toast({ title: "Error", description: "Insert returned no rows", variant: "destructive" });
       setSubmitting(false);
       return;
     }
@@ -165,7 +201,8 @@ export default function ProductionEntry() {
 
     setSubmitted(true);
     setTimeout(() => {
-      setForm({ date: format(new Date(), "yyyy-MM-dd"), product_code_id: "", client_id: "", rolls_count: "", quantity_per_roll: "", unit: "meters", thickness_mm: "", notes: "", swelling_speed: "", swelling_height: "", tensile_strength: "", elongation: "", surface_resistance: "" });
+      setForm({ date: format(new Date(), "yyyy-MM-dd"), product_code_id: "", client_id: "", rolls_count: "", quantity_per_roll: "", unit: "meters", thickness_mm: "", gsm: "", notes: "", swelling_speed: "", swelling_height: "", tensile_strength: "", elongation: "", surface_resistance: "", lab_report_included: false, raw_material_included: false });
+      setThicknessRows([]);
       setSelectedCategory("");
       setMaterialUsage([]);
       setMaterialsOpen(false);
@@ -291,6 +328,51 @@ export default function ProductionEntry() {
             </Select>
           </div>
 
+          {/* Rope multi-thickness panel */}
+          {(() => {
+            const catName = categories.find((c) => c.id === selectedCategory)?.name?.toLowerCase() ?? "";
+            const isRope = catName.includes("rope");
+            if (!isRope) return null;
+            return (
+              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-1"><Layers className="h-4 w-4" /> Multiple Thickness Rows</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setThicknessRows((r) => [...r, { thickness_mm: "", rolls_count: "", quantity_per_roll: "" }])}>
+                    <Plus className="h-3 w-3 mr-1" /> Add
+                  </Button>
+                </div>
+                {thicknessRows.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No rows. Use the fields below for a single thickness, or add rows to record multiple thicknesses in one entry.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {thicknessRows.map((row, idx) => (
+                      <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+                        <div>
+                          {idx === 0 && <Label className="text-xs">Thickness (mm)</Label>}
+                          <Input type="number" step="any" value={row.thickness_mm} className="h-9"
+                            onChange={(e) => setThicknessRows((rs) => rs.map((r, i) => i === idx ? { ...r, thickness_mm: e.target.value } : r))} />
+                        </div>
+                        <div>
+                          {idx === 0 && <Label className="text-xs">Rolls</Label>}
+                          <Input type="number" step="any" value={row.rolls_count} className="h-9"
+                            onChange={(e) => setThicknessRows((rs) => rs.map((r, i) => i === idx ? { ...r, rolls_count: e.target.value } : r))} />
+                        </div>
+                        <div>
+                          {idx === 0 && <Label className="text-xs">Qty / Roll</Label>}
+                          <Input type="number" step="any" value={row.quantity_per_roll} className="h-9"
+                            onChange={(e) => setThicknessRows((rs) => rs.map((r, i) => i === idx ? { ...r, quantity_per_roll: e.target.value } : r))} />
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => setThicknessRows((rs) => rs.filter((_, i) => i !== idx))}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Number of Rolls</Label>
@@ -302,9 +384,15 @@ export default function ProductionEntry() {
             </div>
           </div>
 
-          <div>
-            <Label>Thickness (mm)</Label>
-            <Input type="number" min="0" step="0.01" value={form.thickness_mm} onChange={(e) => setForm({ ...form, thickness_mm: e.target.value })} placeholder="e.g. 0.25" />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Thickness (mm)</Label>
+              <Input type="number" min="0" step="0.01" value={form.thickness_mm} onChange={(e) => setForm({ ...form, thickness_mm: e.target.value })} placeholder="e.g. 0.25" />
+            </div>
+            <div>
+              <Label>GSM</Label>
+              <Input type="number" min="0" step="0.01" value={form.gsm} onChange={(e) => setForm({ ...form, gsm: e.target.value })} placeholder="e.g. 80" />
+            </div>
           </div>
 
           <div>
@@ -312,16 +400,38 @@ export default function ProductionEntry() {
             <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="meters">Meters</SelectItem>
-                <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                {UNIT_OPTIONS.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
+          {/* Copper Tape flags */}
+          {(() => {
+            const catName = categories.find((c) => c.id === selectedCategory)?.name?.toLowerCase() ?? "";
+            const isCopperTape = catName.includes("copper") || catName.includes("semi cond") || catName.includes("water block");
+            if (!isCopperTape) return null;
+            return (
+              <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/30">
+                <Label className="text-sm font-semibold">Copper Tape Options</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="raw_mat_inc" checked={form.raw_material_included}
+                    onCheckedChange={(c) => setForm({ ...form, raw_material_included: !!c })} />
+                  <Label htmlFor="raw_mat_inc" className="text-sm font-normal">Raw material (fiber-glass tape) prepared here</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="lab_inc" checked={form.lab_report_included}
+                    onCheckedChange={(c) => setForm({ ...form, lab_report_included: !!c })} />
+                  <Label htmlFor="lab_inc" className="text-sm font-normal">Lab report prepared here</Label>
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="bg-muted rounded-lg p-4 text-center">
-            <p className="text-sm text-muted-foreground">Total Quantity</p>
+            <p className="text-sm text-muted-foreground">Total Quantity {thicknessRows.length > 0 ? "(single-row preview)" : ""}</p>
             <p className="text-3xl font-bold text-primary">{totalQuantity.toLocaleString()} <span className="text-lg font-normal text-muted-foreground">{form.unit}</span></p>
           </div>
+
 
          <div>
            <Label>Notes / Remarks (Optional)</Label>

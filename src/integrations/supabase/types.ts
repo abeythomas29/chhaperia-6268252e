@@ -38,6 +38,63 @@ export type Database = {
         }
         Relationships: []
       }
+      head36_entries: {
+        Row: {
+          created_at: string
+          date: string
+          gsm: number | null
+          id: string
+          length_per_tape_mtr: number | null
+          notes: string | null
+          operator_id: string
+          product_code_id: string | null
+          roll_width_mm: number | null
+          rolls_produced: number
+          rolls_taken: number
+          slitting_entry_id: string | null
+          thickness_mm: number | null
+          total_quantity: number | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          gsm?: number | null
+          id?: string
+          length_per_tape_mtr?: number | null
+          notes?: string | null
+          operator_id: string
+          product_code_id?: string | null
+          roll_width_mm?: number | null
+          rolls_produced?: number
+          rolls_taken?: number
+          slitting_entry_id?: string | null
+          thickness_mm?: number | null
+          total_quantity?: number | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          gsm?: number | null
+          id?: string
+          length_per_tape_mtr?: number | null
+          notes?: string | null
+          operator_id?: string
+          product_code_id?: string | null
+          roll_width_mm?: number | null
+          rolls_produced?: number
+          rolls_taken?: number
+          slitting_entry_id?: string | null
+          thickness_mm?: number | null
+          total_quantity?: number | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           created_at: string
@@ -145,10 +202,13 @@ export type Database = {
           created_at: string
           date: string
           elongation: number | null
+          gsm: number | null
           id: string
+          lab_report_included: boolean
           notes: string | null
           product_code_id: string
           quantity_per_roll: number
+          raw_material_included: boolean
           rolls_count: number
           surface_resistance: number | null
           swelling_height: number | null
@@ -165,10 +225,13 @@ export type Database = {
           created_at?: string
           date?: string
           elongation?: number | null
+          gsm?: number | null
           id?: string
+          lab_report_included?: boolean
           notes?: string | null
           product_code_id: string
           quantity_per_roll: number
+          raw_material_included?: boolean
           rolls_count: number
           surface_resistance?: number | null
           swelling_height?: number | null
@@ -185,10 +248,13 @@ export type Database = {
           created_at?: string
           date?: string
           elongation?: number | null
+          gsm?: number | null
           id?: string
+          lab_report_included?: boolean
           notes?: string | null
           product_code_id?: string
           quantity_per_roll?: number
+          raw_material_included?: boolean
           rolls_count?: number
           surface_resistance?: number | null
           swelling_height?: number | null
@@ -449,6 +515,7 @@ export type Database = {
           cut_quantity_produced: number
           cut_width_mm: number
           date: string
+          gsm: number | null
           id: string
           notes: string | null
           product_code_id: string
@@ -464,6 +531,7 @@ export type Database = {
           cut_quantity_produced: number
           cut_width_mm: number
           date?: string
+          gsm?: number | null
           id?: string
           notes?: string | null
           product_code_id: string
@@ -479,6 +547,7 @@ export type Database = {
           cut_quantity_produced?: number
           cut_width_mm?: number
           date?: string
+          gsm?: number | null
           id?: string
           notes?: string | null
           product_code_id?: string
@@ -505,6 +574,42 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      slitting_returns: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          returned_by: string
+          returned_quantity: number
+          slitting_entry_id: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          returned_by: string
+          returned_quantity?: number
+          slitting_entry_id: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          returned_by?: string
+          returned_quantity?: number
+          slitting_entry_id?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       stock_issues: {
         Row: {
