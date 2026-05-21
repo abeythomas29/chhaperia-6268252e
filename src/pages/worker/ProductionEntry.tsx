@@ -411,17 +411,31 @@ export default function ProductionEntry() {
             const isCopperTape = catName.includes("copper") || catName.includes("semi cond") || catName.includes("water block");
             if (!isCopperTape) return null;
             return (
-              <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/30">
+              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30">
                 <Label className="text-sm font-semibold">Copper Tape Options</Label>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="raw_mat_inc" checked={form.raw_material_included}
-                    onCheckedChange={(c) => setForm({ ...form, raw_material_included: !!c })} />
-                  <Label htmlFor="raw_mat_inc" className="text-sm font-normal">Raw material (fiber-glass tape) prepared here</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="lab_inc" checked={form.lab_report_included}
-                    onCheckedChange={(c) => setForm({ ...form, lab_report_included: !!c })} />
-                  <Label htmlFor="lab_inc" className="text-sm font-normal">Lab report prepared here</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Raw material prepared here?</Label>
+                    <Select value={form.raw_material_included ? "yes" : "no"}
+                      onValueChange={(v) => setForm({ ...form, raw_material_included: v === "yes" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Lab report prepared here?</Label>
+                    <Select value={form.lab_report_included ? "yes" : "no"}
+                      onValueChange={(v) => setForm({ ...form, lab_report_included: v === "yes" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             );

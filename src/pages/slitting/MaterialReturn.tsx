@@ -58,9 +58,10 @@ export default function MaterialReturn() {
   const alreadyReturned = selected ? (returns[selected.id] ?? 0) : 0;
   const newReturn = parseFloat(form.returned_quantity) || 0;
   const totalReturned = alreadyReturned + newReturn;
-  const used = selected ? Number(selected.source_quantity) - totalReturned : 0;
+  const issued = selected ? Number(selected.source_quantity) : 0;
   const produced = selected ? Number(selected.cut_quantity_produced) : 0;
-  const matched = selected && Math.abs(used - produced) < 0.01;
+  const wastage = selected ? issued - produced - totalReturned : 0;
+  const matched = selected && Math.abs(wastage) < 0.01;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,12 +111,17 @@ export default function MaterialReturn() {
           </div>
 
           {selected && (
-            <div className="rounded-lg border p-3 grid grid-cols-2 gap-2 text-sm">
-              <div><span className="text-muted-foreground">Total Bought: </span><b>{selected.source_quantity} {selected.unit}</b></div>
-              <div><span className="text-muted-foreground">Already Returned: </span><b>{alreadyReturned}</b></div>
-              <div><span className="text-muted-foreground">Total Production: </span><b>{produced}</b></div>
-              <div className={matched ? "text-green-600 font-semibold" : "text-destructive font-semibold"}>
-                Used (auto) = {used.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            <div className="rounded-lg border p-3 space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="text-muted-foreground">Issued (before production): </span><b>{issued.toLocaleString()} {selected.unit}</b></div>
+                <div><span className="text-muted-foreground">Produced: </span><b>{produced.toLocaleString()}</b></div>
+                <div><span className="text-muted-foreground">Already Returned: </span><b>{alreadyReturned.toLocaleString()}</b></div>
+                <div><span className="text-muted-foreground">New Return: </span><b>{newReturn.toLocaleString()}</b></div>
+              </div>
+              <div className={`rounded-md p-2 text-center font-semibold ${matched ? "bg-green-500/10 text-green-700" : "bg-destructive/10 text-destructive"}`}>
+                {matched
+                  ? "✓ Matched — No wastage (Issued = Produced + Returned)"
+                  : `Wastage = ${wastage.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${selected.unit} (Issued − Produced − Returned)`}
               </div>
             </div>
           )}
